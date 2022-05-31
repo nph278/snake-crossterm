@@ -1,7 +1,5 @@
 #![deny(clippy::all, clippy::pedantic)]
 
-// TODO: More styles
-
 use std::collections::VecDeque;
 use std::io::{stdout, Write};
 use std::sync::{Arc, Mutex};
@@ -77,26 +75,53 @@ impl SegmentType {
 }
 
 #[derive(Debug, Clone, Copy)]
-enum Style {
+enum SnakeStyle {
     CurvedLine,
     SharpLine,
     Block,
+    Ascii,
 }
 
-impl Style {
-    fn next(self) -> Style {
+impl SnakeStyle {
+    fn next(self) -> SnakeStyle {
         match self {
-            Style::CurvedLine => Style::SharpLine,
-            Style::SharpLine => Style::Block,
-            Style::Block => Style::CurvedLine,
+            SnakeStyle::CurvedLine => SnakeStyle::SharpLine,
+            SnakeStyle::SharpLine => SnakeStyle::Block,
+            SnakeStyle::Block => SnakeStyle::Ascii,
+            SnakeStyle::Ascii => SnakeStyle::CurvedLine,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+enum AppleStyle {
+    Filled,
+    Outline,
+    Ascii,
+}
+
+impl AppleStyle {
+    fn next(self) -> AppleStyle {
+        match self {
+            AppleStyle::Filled => AppleStyle::Outline,
+            AppleStyle::Outline => AppleStyle::Ascii,
+            AppleStyle::Ascii => AppleStyle::Filled,
+        }
+    }
+
+    fn display(self) -> char {
+        match self {
+            AppleStyle::Filled => '●',
+            AppleStyle::Outline => '○',
+            AppleStyle::Ascii => 'O',
         }
     }
 }
 
 impl SegmentType {
-    fn display(self, style: Style) -> char {
+    fn display(self, style: SnakeStyle) -> char {
         match style {
-            Style::CurvedLine => match self {
+            SnakeStyle::CurvedLine => match self {
                 SegmentType::NorthSouth => '│',
                 SegmentType::NorthEast => '╰',
                 SegmentType::NorthWest => '╯',
@@ -104,7 +129,7 @@ impl SegmentType {
                 SegmentType::SouthWest => '╮',
                 SegmentType::EastWest => '─',
             },
-            Style::SharpLine => match self {
+            SnakeStyle::SharpLine => match self {
                 SegmentType::NorthSouth => '│',
                 SegmentType::NorthEast => '└',
                 SegmentType::NorthWest => '┘',
@@ -112,7 +137,15 @@ impl SegmentType {
                 SegmentType::SouthWest => '┐',
                 SegmentType::EastWest => '─',
             },
-            Style::Block => '█', // All segments are blocks
+            SnakeStyle::Ascii => match self {
+                SegmentType::NorthSouth => '|',
+                SegmentType::NorthEast => '`',
+                SegmentType::NorthWest => '`',
+                SegmentType::SouthEast => '.',
+                SegmentType::SouthWest => '.',
+                SegmentType::EastWest => '-',
+            },
+            SnakeStyle::Block => '█', // All segments are blocks
         }
     }
 }
@@ -128,7 +161,8 @@ struct GameState {
     head: (u16, u16),
     board: (u16, u16),
     direction: Direction,
-    style: Style,
+    snake_style: SnakeStyle,
+    apple_style: AppleStyle,
     wall_wrap: bool,
 }
 
@@ -146,7 +180,8 @@ impl GameState {
             head: (1, 0),
             board: (10, 10),
             direction: Direction::East,
-            style: Style::CurvedLine,
+            snake_style: SnakeStyle::CurvedLine,
+            apple_style: AppleStyle::Filled,
             wall_wrap: false,
         }
     }
@@ -158,23 +193,37 @@ fn render_all(game: &GameState) {
 
     // Apple
     execute!(stdout(), MoveTo(game.apple.0, game.apple.1)).unwrap();
-    print!("O");
+    print!("{}", game.apple_style.display());
 
     // Snake
     for Segment(x, y, s, _) in &game.snake {
         execute!(stdout(), MoveTo(*x, *y)).unwrap();
-        print!("{}", s.display(game.style));
+        print!("{}", s.display(game.snake_style));
     }
 
     // Board
     execute!(stdout(), MoveTo(0, game.board.1)).unwrap();
-    print!("{}", "─".repeat(game.board.0 as usize));
+    print!(
+        "{}",
+        SegmentType::EastWest
+            .display(game.snake_style)
+            .to_string()
+            .repeat(game.board.0 as usize)
+    );
     for i in 0..game.board.1 {
         execute!(stdout(), MoveTo(game.board.0, i)).unwrap();
-        print!("│");
+        print!(
+            "{}",
+            SegmentType::NorthSouth
+                .display(game.snake_style)
+                .to_string()
+        );
     }
     execute!(stdout(), MoveTo(game.board.0, game.board.1)).unwrap();
-    print!("╯");
+    print!(
+        "{}",
+        SegmentType::NorthWest.display(game.snake_style).to_string()
+    );
 
     // Flush
     stdout().lock().flush().unwrap();
@@ -258,14 +307,20 @@ fn handle_input(game: &Arc<Mutex<GameState>>) {
                 game.delay = game.delay.checked_sub(Duration::from_millis(20)).unwrap();
             }
 
-            // Cycle style
+            // Cycle snake style
             KeyCode::Char('7') => {
-                game.style = game.style.next();
+                game.snake_style = game.snake_style.next();
+                render_all(&game);
+            }
+
+            // Cycle apple style
+            KeyCode::Char('8') => {
+                game.apple_style = game.apple_style.next();
                 render_all(&game);
             }
 
             // Toggle wall wrapping (The snake lives on a torus !!)
-            KeyCode::Char('8') => {
+            KeyCode::Char('9') => {
                 game.wall_wrap = !game.wall_wrap;
             }
 
