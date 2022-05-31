@@ -2,6 +2,8 @@
 
 Command line snake game, written in rust
 
+[![asciicast](https://asciinema.org/a/Cpef76q0t8UHsRW8UZeOkIprq.svg)](https://asciinema.org/a/Cpef76q0t8UHsRW8UZeOkIprq)
+
 ## Install with cargo
 
 ```
