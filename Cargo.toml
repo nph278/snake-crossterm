@@ -1,7 +1,12 @@
 [package]
-name = "snake"
-version = "0.1.0"
+name = "snake-crossterm"
+description = "Command line snake game"
+version = "1.0.0"
 edition = "2021"
+authors = ["nph278"]
+homepage = "https://github.com/nph278/snake-rs"
+repository = "https://github.com/nph278/snake-rs"
+license = "MIT"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

@@ -3,7 +3,6 @@
 // TODO: More styles
 
 use std::collections::VecDeque;
-use std::fmt::Display;
 use std::io::{stdout, Write};
 use std::sync::{Arc, Mutex};
 use std::thread;
@@ -28,6 +27,7 @@ enum Direction {
     West,
 }
 
+// A type of segment in the snake, for printing
 #[derive(Debug, Clone, Copy)]
 enum SegmentType {
     NorthSouth,
@@ -120,14 +120,7 @@ impl SegmentType {
                 SegmentType::SouthWest => '┐',
                 SegmentType::EastWest => '─',
             },
-            Style::Block => match self {
-                SegmentType::NorthSouth => '█',
-                SegmentType::NorthEast => '█',
-                SegmentType::NorthWest => '█',
-                SegmentType::SouthEast => '█',
-                SegmentType::SouthWest => '█',
-                SegmentType::EastWest => '█',
-            },
+            Style::Block => '█', // All segments are blocks
         }
     }
 }
@@ -166,6 +159,7 @@ impl GameState {
 }
 
 fn render_all(game: &GameState) {
+    // Clear
     execute!(stdout(), Clear(ClearType::All)).unwrap();
 
     // Apple
@@ -188,11 +182,103 @@ fn render_all(game: &GameState) {
     execute!(stdout(), MoveTo(game.board.0, game.board.1)).unwrap();
     print!("╯");
 
+    // Flush
     stdout().lock().flush().unwrap();
 }
 
 fn game_over() {
     println!("\nGame Over");
+}
+
+fn handle_input(game: &Arc<Mutex<GameState>>) {
+    if let Event::Key(k) = read().unwrap() {
+        let mut game = game.lock().unwrap();
+        match k.code {
+            // Quit
+            KeyCode::Char('q') => {
+                execute!(stdout(), Show).unwrap();
+                disable_raw_mode().unwrap();
+                println!();
+                std::process::exit(0);
+            }
+
+            // Up
+            KeyCode::Char('k') | KeyCode::Up => {
+                if game.snake[game.snake.len() - 1].3 != Direction::South {
+                    game.direction = Direction::North;
+                }
+            }
+
+            // Down
+            KeyCode::Char('j') | KeyCode::Down => {
+                if game.snake[game.snake.len() - 1].3 != Direction::North {
+                    game.direction = Direction::South;
+                }
+            }
+
+            // Left
+            KeyCode::Char('h') | KeyCode::Left => {
+                if game.snake[game.snake.len() - 1].3 != Direction::East {
+                    game.direction = Direction::West;
+                }
+            }
+
+            // Right
+            KeyCode::Char('l') | KeyCode::Right => {
+                if game.snake[game.snake.len() - 1].3 != Direction::West {
+                    game.direction = Direction::East;
+                }
+            }
+
+            // Decrease board x
+            KeyCode::Char('1') => {
+                game.board.0 = game.board.0.checked_sub(1).unwrap();
+                render_all(&game);
+            }
+
+            // Increase board x
+            KeyCode::Char('2') => {
+                game.board.0 = game.board.0.checked_add(1).unwrap();
+                render_all(&game);
+            }
+
+            // Decrease board y
+            KeyCode::Char('3') => {
+                game.board.1 = game.board.1.checked_sub(1).unwrap();
+                render_all(&game);
+            }
+
+            // Increase board x
+            KeyCode::Char('4') => {
+                game.board.1 = game.board.1.checked_add(1).unwrap();
+                render_all(&game);
+            }
+
+            // Decrease speed
+            KeyCode::Char('5') => {
+                game.delay = game.delay.checked_add(Duration::from_millis(20)).unwrap();
+            }
+
+            // Increase speed
+            KeyCode::Char('6') => {
+                game.delay = game.delay.checked_sub(Duration::from_millis(20)).unwrap();
+            }
+
+            // Cycle style back
+            KeyCode::Char('7') => {
+                game.style = game.style.prev();
+                render_all(&game);
+            }
+
+            // Cycle style forward
+            KeyCode::Char('8') => {
+                game.style = game.style.next();
+                render_all(&game);
+            }
+
+            _ => {}
+        }
+    }
 }
 
 fn main() {
@@ -201,93 +287,25 @@ fn main() {
 
     let game = Arc::new(Mutex::new(GameState::new()));
 
+    // Spawn input loop in another thread
     {
         let game = Arc::clone(&game);
 
         thread::spawn(move || loop {
-            match read().unwrap() {
-                Event::Key(k) => match k.code {
-                    KeyCode::Char('q') => {
-                        execute!(stdout(), Show).unwrap();
-                        disable_raw_mode().unwrap();
-                        println!();
-                        std::process::exit(0);
-                    }
-                    KeyCode::Char('k') | KeyCode::Up => {
-                        let mut game = game.lock().unwrap();
-                        if game.snake[game.snake.len() - 1].3 != Direction::South {
-                            game.direction = Direction::North;
-                        }
-                    }
-                    KeyCode::Char('j') | KeyCode::Down => {
-                        let mut game = game.lock().unwrap();
-                        if game.snake[game.snake.len() - 1].3 != Direction::North {
-                            game.direction = Direction::South;
-                        }
-                    }
-                    KeyCode::Char('h') | KeyCode::Left => {
-                        let mut game = game.lock().unwrap();
-                        if game.snake[game.snake.len() - 1].3 != Direction::East {
-                            game.direction = Direction::West;
-                        }
-                    }
-                    KeyCode::Char('l') | KeyCode::Right => {
-                        let mut game = game.lock().unwrap();
-                        if game.snake[game.snake.len() - 1].3 != Direction::West {
-                            game.direction = Direction::East;
-                        }
-                    }
-                    KeyCode::Char('1') => {
-                        let mut game = game.lock().unwrap();
-                        game.board.0 = game.board.0.checked_sub(1).unwrap();
-                        render_all(&game);
-                    }
-                    KeyCode::Char('2') => {
-                        let mut game = game.lock().unwrap();
-                        game.board.0 = game.board.0.checked_add(1).unwrap();
-                        render_all(&game);
-                    }
-                    KeyCode::Char('3') => {
-                        let mut game = game.lock().unwrap();
-                        game.board.1 = game.board.1.checked_sub(1).unwrap();
-                        render_all(&game);
-                    }
-                    KeyCode::Char('4') => {
-                        let mut game = game.lock().unwrap();
-                        game.board.1 = game.board.1.checked_add(1).unwrap();
-                        render_all(&game);
-                    }
-                    KeyCode::Char('5') => {
-                        let mut game = game.lock().unwrap();
-                        game.delay = game.delay.checked_add(Duration::from_millis(20)).unwrap();
-                    }
-                    KeyCode::Char('6') => {
-                        let mut game = game.lock().unwrap();
-                        game.delay = game.delay.checked_sub(Duration::from_millis(20)).unwrap();
-                    }
-                    KeyCode::Char('7') => {
-                        let mut game = game.lock().unwrap();
-                        game.style = game.style.prev();
-                        render_all(&game);
-                    }
-                    KeyCode::Char('8') => {
-                        let mut game = game.lock().unwrap();
-                        game.style = game.style.next();
-                        render_all(&game);
-                    }
-                    _ => {}
-                },
-                _ => {}
-            }
+            handle_input(&game);
         });
     };
 
     let mut rng = thread_rng();
 
+    // Game loop
     loop {
         let head = game.lock().unwrap().head;
         let board = game.lock().unwrap().board;
         let direction = game.lock().unwrap().direction;
+
+        // New head position, based on direction
+        // Exits loop if collides with wall
         let new_head = match direction {
             Direction::North => {
                 if head.1 > 0 {
@@ -320,32 +338,57 @@ fn main() {
         };
         {
             let mut game = game.lock().unwrap();
-            if let Some(_) = game.snake.iter().find(|x| (x.0, x.1) == new_head) {
+
+            // Snake contains new position, self-collision
+            if game.snake.iter().any(|x| (x.0, x.1) == new_head) {
                 break;
             }
+            // Set head
             game.head = new_head;
+
+            // Update second-to-last segment
             let len = game.snake.len();
             game.snake[len - 1].2 =
                 SegmentType::from_next(game.snake[game.snake.len() - 1].3, game.direction);
+
+            // New head segment
             let segment = Segment(
                 new_head.0,
                 new_head.1,
                 SegmentType::from_dir(game.direction),
                 game.direction,
             );
+
+            // Remove oldest segment, unless you ate an apple
             if new_head == game.apple {
+                // New apple position
                 game.apple = (
                     rng.gen_range(0..game.board.0),
                     rng.gen_range(0..game.board.1),
                 );
             } else {
+                // Remove oldest segment
                 game.snake.pop_front();
             }
+
+            // Add new head segment
             game.snake.push_back(segment);
+
+            // Render
             render_all(&game);
         }
         let delay = game.lock().unwrap().delay;
         thread::sleep(delay);
+    }
+
+    // Loop will end when game over
+
+    // Render snake about to die
+    {
+        let mut game = game.lock().unwrap();
+        let len = game.snake.len();
+        game.snake[len - 1].2 = SegmentType::from_next(game.snake[len - 1].3, game.direction);
+        render_all(&game);
     }
 
     game_over();
