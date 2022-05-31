@@ -6,14 +6,11 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
 
-use crossterm::cursor::MoveTo;
+use crossterm::cursor::{Hide, MoveTo, Show};
 use crossterm::event::{read, Event, KeyCode};
-use crossterm::terminal::{Clear, ClearType};
-use crossterm::{
-    cursor::{Hide, Show},
-    execute,
-    terminal::{disable_raw_mode, enable_raw_mode},
-};
+use crossterm::execute;
+use crossterm::style::{style, Color, Stylize};
+use crossterm::terminal::{disable_raw_mode, enable_raw_mode, Clear, ClearType};
 
 use rand::prelude::*;
 
@@ -97,6 +94,7 @@ impl SnakeStyle {
 enum AppleStyle {
     Filled,
     Outline,
+    Block,
     Ascii,
 }
 
@@ -104,7 +102,8 @@ impl AppleStyle {
     fn next(self) -> AppleStyle {
         match self {
             AppleStyle::Filled => AppleStyle::Outline,
-            AppleStyle::Outline => AppleStyle::Ascii,
+            AppleStyle::Outline => AppleStyle::Block,
+            AppleStyle::Block => AppleStyle::Ascii,
             AppleStyle::Ascii => AppleStyle::Filled,
         }
     }
@@ -113,6 +112,7 @@ impl AppleStyle {
         match self {
             AppleStyle::Filled => '●',
             AppleStyle::Outline => '○',
+            AppleStyle::Block => '█',
             AppleStyle::Ascii => 'O',
         }
     }
@@ -164,6 +164,7 @@ struct GameState {
     snake_style: SnakeStyle,
     apple_style: AppleStyle,
     wall_wrap: bool,
+    color: bool,
 }
 
 impl GameState {
@@ -183,6 +184,7 @@ impl GameState {
             snake_style: SnakeStyle::CurvedLine,
             apple_style: AppleStyle::Filled,
             wall_wrap: false,
+            color: true,
         }
     }
 }
@@ -193,12 +195,20 @@ fn render_all(game: &GameState) {
 
     // Apple
     execute!(stdout(), MoveTo(game.apple.0, game.apple.1)).unwrap();
-    print!("{}", game.apple_style.display());
+    if game.color {
+        print!("{}", style(game.apple_style.display()).with(Color::Red));
+    } else {
+        print!("{}", game.apple_style.display());
+    }
 
     // Snake
     for Segment(x, y, s, _) in &game.snake {
         execute!(stdout(), MoveTo(*x, *y)).unwrap();
-        print!("{}", s.display(game.snake_style));
+        if game.color {
+            print!("{}", style(s.display(game.snake_style)).with(Color::Green));
+        } else {
+            print!("{}", s.display(game.snake_style))
+        }
     }
 
     // Board
@@ -322,6 +332,12 @@ fn handle_input(game: &Arc<Mutex<GameState>>) {
             // Toggle wall wrapping (The snake lives on a torus !!)
             KeyCode::Char('9') => {
                 game.wall_wrap = !game.wall_wrap;
+            }
+
+            // Toggle color
+            KeyCode::Char('0') => {
+                game.color = !game.color;
+                render_all(&game);
             }
 
             _ => {}

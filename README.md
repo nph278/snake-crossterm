@@ -25,3 +25,4 @@ snake-crossterm
 - `7`: Cycle snake style
 - `8`: Cycle apple style
 - `9`: Toggle wall wrapping
+- `0`: Toggle color
