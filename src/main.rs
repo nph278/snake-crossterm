@@ -137,6 +137,7 @@ struct GameState {
     board: (u16, u16),
     direction: Direction,
     style: Style,
+    wall_wrap: bool,
 }
 
 impl GameState {
@@ -154,6 +155,7 @@ impl GameState {
             board: (10, 10),
             direction: Direction::East,
             style: Style::CurvedLine,
+            wall_wrap: false,
         }
     }
 }
@@ -276,6 +278,11 @@ fn handle_input(game: &Arc<Mutex<GameState>>) {
                 render_all(&game);
             }
 
+            // Toggle wall wrapping (The snake lives on a torus !!)
+            KeyCode::Char('9') => {
+                game.wall_wrap = !game.wall_wrap;
+            }
+
             _ => {}
         }
     }
@@ -303,13 +310,17 @@ fn main() {
         let head = game.lock().unwrap().head;
         let board = game.lock().unwrap().board;
         let direction = game.lock().unwrap().direction;
+        let wall_wrap = game.lock().unwrap().wall_wrap;
 
         // New head position, based on direction
-        // Exits loop if collides with wall
+        // Wraps if collides with wall and wall_wrap is true
+        // Exits loop if collides with wall and wall_wrap is false
         let new_head = match direction {
             Direction::North => {
                 if head.1 > 0 {
                     (head.0, head.1 - 1)
+                } else if wall_wrap {
+                    (head.0, board.1 - 1)
                 } else {
                     break;
                 }
@@ -317,6 +328,8 @@ fn main() {
             Direction::South => {
                 if head.1 + 1 < board.1 {
                     (head.0, head.1 + 1)
+                } else if wall_wrap {
+                    (head.0, 0)
                 } else {
                     break;
                 }
@@ -324,6 +337,8 @@ fn main() {
             Direction::West => {
                 if head.0 > 0 {
                     (head.0 - 1, head.1)
+                } else if wall_wrap {
+                    (board.0 - 1, head.1)
                 } else {
                     break;
                 }
@@ -331,6 +346,8 @@ fn main() {
             Direction::East => {
                 if head.0 + 1 < board.0 {
                     (head.0 + 1, head.1)
+                } else if wall_wrap {
+                    (0, head.1)
                 } else {
                     break;
                 }

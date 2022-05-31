@@ -23,3 +23,4 @@ snake-crossterm
 - `3` and `4`: Change vertical size of board
 - `5` and `6`: Change game speed
 - `7`rand `8`: Cycle snake style
+- `9`: Toggle wall wrapping
