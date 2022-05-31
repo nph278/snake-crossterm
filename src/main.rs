@@ -1,5 +1,7 @@
 #![deny(clippy::all, clippy::pedantic)]
 
+// TODO: just-direction segments
+
 use std::collections::VecDeque;
 use std::io::{stdout, Write};
 use std::sync::{Arc, Mutex};
@@ -364,10 +366,10 @@ fn main() {
 
     // Game loop
     loop {
-        let head = game.lock().unwrap().head;
-        let board = game.lock().unwrap().board;
-        let direction = game.lock().unwrap().direction;
-        let wall_wrap = game.lock().unwrap().wall_wrap;
+        let (head, board, direction, wall_wrap) = {
+            let game = game.lock().unwrap();
+            (game.head, game.board, game.direction, game.wall_wrap)
+        };
 
         // New head position, based on direction
         // Wraps if collides with wall and wall_wrap is true
@@ -410,7 +412,7 @@ fn main() {
                 }
             }
         };
-        {
+        let delay = {
             let mut game = game.lock().unwrap();
 
             // Snake contains new position, self-collision
@@ -450,8 +452,8 @@ fn main() {
 
             // Render
             render_all(&game);
-        }
-        let delay = game.lock().unwrap().delay;
+            game.delay
+        };
         thread::sleep(delay);
     }
 
