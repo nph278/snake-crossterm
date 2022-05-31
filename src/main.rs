@@ -91,14 +91,6 @@ impl Style {
             Style::Block => Style::CurvedLine,
         }
     }
-
-    fn prev(self) -> Style {
-        match self {
-            Style::CurvedLine => Style::Block,
-            Style::SharpLine => Style::CurvedLine,
-            Style::Block => Style::SharpLine,
-        }
-    }
 }
 
 impl SegmentType {
@@ -266,20 +258,14 @@ fn handle_input(game: &Arc<Mutex<GameState>>) {
                 game.delay = game.delay.checked_sub(Duration::from_millis(20)).unwrap();
             }
 
-            // Cycle style back
+            // Cycle style
             KeyCode::Char('7') => {
-                game.style = game.style.prev();
-                render_all(&game);
-            }
-
-            // Cycle style forward
-            KeyCode::Char('8') => {
                 game.style = game.style.next();
                 render_all(&game);
             }
 
             // Toggle wall wrapping (The snake lives on a torus !!)
-            KeyCode::Char('9') => {
+            KeyCode::Char('8') => {
                 game.wall_wrap = !game.wall_wrap;
             }
 
