@@ -12,7 +12,6 @@ license = "MIT"
 
 [profile.release]
 strip = true
-lto = true
 
 [dependencies]
 rand = "0.8"
